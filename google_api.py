@@ -88,16 +88,30 @@ class GoogleAPI:
         print(f'Folder "{folder_name}" created with ID: {folder.get("id")}')
         return folder.get('id')
 
-    def upload_pdf(self, folder_id, pdf_file_path):
-        """Upload a PDF file to the specified Google Drive folder."""
+    def upload_pdf(self, folder_id, pdf_file_path, custom_name=None):
+        """Upload a PDF file to the specified Google Drive folder.
+        
+        Args:
+            folder_id (str): ID of the folder to upload to
+            pdf_file_path (str): Path to the PDF file
+            custom_name (str, optional): Custom name for the file
+            
+        Returns:
+            tuple: (file_id, file_name)
+        """
+        file_name = custom_name if custom_name else os.path.basename(pdf_file_path)
         file_metadata = {
-            'name': os.path.basename(pdf_file_path),
+            'name': file_name,
             'parents': [folder_id]
         }
         media = MediaFileUpload(pdf_file_path, mimetype='application/pdf')
-        file = self.service_drive.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        print('File uploaded with ID: %s' % file.get('id'))
-        return file.get('id')
+        file = self.service_drive.files().create(
+            body=file_metadata, 
+            media_body=media, 
+            fields='id,name'
+        ).execute()
+        print(f'File uploaded: {file.get("name")} (ID: {file.get("id")})')
+        return file.get('id'), file.get('name')
 
     def create_task(self, task_title, task_notes=None, due_date=None):
         """Create a task in Google Tasks.
