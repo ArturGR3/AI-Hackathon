@@ -84,9 +84,9 @@ def create_summary_page(doc_info: dict) -> str:
             if action_type == 'appointment':
                 appointment = action.get('appointment', {})
                 action_text = (
-                    f"Appointment:<br/>"
-                    f"- Date: {appointment.get('date', 'N/A')}<br/>"
-                    f"- Location: {appointment.get('location', 'N/A')}<br/>"
+                    f"Appointment:<br/><br/>"
+                    f"- Date: {appointment.get('date', 'N/A')}<br/><br/>"
+                    f"- Location: {appointment.get('location', 'N/A')}<br/><br/>"
                     f"- Required Documents: {', '.join(appointment.get('required_documents', ['None']))}"
                 )
             elif action_type == 'reply_required':
