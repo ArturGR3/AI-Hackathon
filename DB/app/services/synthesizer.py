@@ -1,49 +1,24 @@
 from typing import List, Optional, Literal
 import pandas as pd
-import os 
-import sys 
 import json
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pydantic import BaseModel, Field
 from services.llm_factory import LLMFactory
 from datetime import datetime
 
 class SynthesizedResponse(BaseModel):
-    thought_process: List[str] = Field(
-        description="List of thoughts that the AI assistant had while synthesizing the answer"
-    )
+    thought_process: List[str] = Field(description="List of thoughts that the AI assistant had while synthesizing the answer")
     answer: str = Field(description="The synthesized answer to the user's question")
-    enough_context: bool = Field(
-        description="Whether the assistant has enough context to answer the question"
-    )
-
-class Sender(BaseModel):
-    sender: Literal['Employment Agency', 'Tax', 'Health', 'Immigration', 'Other'] = Field(description="The sender of the document")
-
-class AddressedTo(BaseModel):
-    addressed_to: Literal['Artur Grygorian', 'Nune Grygorian'] = Field(description="The recipient of the document")
+    enough_context: bool = Field(description="Whether the assistant has enough context to answer the question")
 
 class TimeFilter(BaseModel):
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
-    
+
 class UserQuestionPreprocessing(BaseModel):
-    """
-    Preprocess the user's question to extract the sender, recipient, and date.
-    """    
     question: str = Field(description="The user's question")
-    sender: Optional[Sender] = Field(description="The sender of the document")
-    addressed_to: Optional[AddressedTo] = Field(description="The recipient of the document")
+    sender: Optional[Literal['Employment Agency', 'Tax', 'Health', 'Immigration', 'Other']] = Field(description="The sender of the document")
+    addressed_to: Optional[Literal['Artur Grygorian', 'Nune Grygorian']] = Field(description="The recipient of the document")
     time_filter: Optional[TimeFilter] = Field(description="The time filter for the search")
-    
-llm = LLMFactory("openai")
-response = llm.create_completion(
-            response_model=UserQuestionPreprocessing,
-            messages=[
-                {"role": "system", "content": f"You are a query generator based on the user's question. The current date is {datetime.now().strftime('%Y-%m-%d')}"},
-                {"role": "user", "content": f"# User question: What are the last's week documents for Artur Grygorian?"},
-            ],
-        )
 
 class Synthesizer:
     SYSTEM_PROMPT = """

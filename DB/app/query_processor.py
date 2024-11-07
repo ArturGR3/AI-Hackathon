@@ -82,25 +82,24 @@ class QueryProcessor:
         # Add sender predicate if specified
         if preprocessed.sender:
             predicates_list.append(
-                client.Predicates("sender", "==", preprocessed.sender.sender)
+                client.Predicates("category", "==", preprocessed.sender)
             )
 
         # Add addressed_to predicate if specified
         if preprocessed.addressed_to:
             predicates_list.append(
-                client.Predicates("addressed_to", "==", preprocessed.addressed_to.addressed_to)
+                client.Predicates("addressed_to", "==", preprocessed.addressed_to)
             )
 
-        # Combine all predicates with AND operation
+        # Combine all predicates with OR operation like in similarity_search.py
         final_predicate = None
         for predicate in predicates_list:
             if final_predicate is None:
                 final_predicate = predicate
             else:
-                final_predicate = final_predicate & predicate
+                final_predicate = final_predicate | predicate  # Using OR instead of AND
 
         return final_predicate
-
 
 # Example usage:
 if __name__ == "__main__":
@@ -109,8 +108,8 @@ if __name__ == "__main__":
     # Example queries
     queries = [
         "What are the last week's documents for Artur Grygorian?",
-        "Show me all Immigration documents addressed to Nune Grygorian from last month",
-        "What documents did I receive from the Tax office this year?"
+        # "Show me all Immigration documents addressed to Nune Grygorian from last month",
+        # "What documents did I receive from the Tax office this year?"
     ]
     
     for query in queries:
@@ -127,4 +126,3 @@ if __name__ == "__main__":
         for thought in result['response'].thought_process:
             print(f"- {thought}")
         print(f"Enough context: {result['response'].enough_context}")
-        print(f"Enough context: {response.enough_context}") 
