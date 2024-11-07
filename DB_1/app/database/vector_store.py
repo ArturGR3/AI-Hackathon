@@ -4,9 +4,11 @@ from typing import Any, List, Optional, Tuple, Union
 from datetime import datetime
 
 import pandas as pd
-from config.settings import get_settings
+from DB.app.config.settings import get_settings
 from openai import OpenAI
 from timescale_vector import client
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 
 class VectorStore:
@@ -54,8 +56,15 @@ class VectorStore:
         self.vec_client.create_tables()
 
     def create_index(self) -> None:
-        """Create the StreamingDiskANN index to spseed up similarity search"""
-        self.vec_client.create_embedding_index(client.DiskAnnIndex())
+        """Create the StreamingDiskANN index to speed up similarity search if it doesn't exist."""
+        try:
+            self.vec_client.create_embedding_index(client.DiskAnnIndex())
+            logging.info("Successfully created StreamingDiskANN index")
+        except Exception as e:
+            if "already exists" in str(e):
+                logging.info("Index already exists, skipping creation")
+            else:
+                raise e
 
     def drop_index(self) -> None:
         """Drop the StreamingDiskANN index in the database"""
@@ -227,3 +236,128 @@ class VectorStore:
     def drop_tables(self) -> None:
         """Drop the existing tables in the database"""
         self.vec_client.drop_table()
+
+    def tables_exist(self) -> bool:
+        """
+        Check if the vector store tables exist in the database.
+        
+        Returns:
+            bool: True if tables exist, False otherwise
+        """
+        try:
+            # Try to execute a simple query to check if the table exists
+            self.vec_client.execute_sql(
+                f"SELECT 1 FROM {self.vector_settings.table_name} LIMIT 1"
+            )
+            return True
+        except Exception:
+            return False
+
+    def verify_record_exists(self, record_id: str) -> bool:
+        """
+        Verify that a record exists in the database.
+        
+        Args:
+            record_id: The ID of the record to verify
+            
+        Returns:
+            bool: True if record exists, False otherwise
+        """
+        try:
+            # Create a direct connection to PostgreSQL
+            conn = psycopg2.connect(self.settings.database.service_url)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"SELECT 1 FROM {self.vector_settings.table_name} WHERE id = %s",
+                    (record_id,)
+                )
+                result = cur.fetchone()
+            conn.close()
+            return bool(result)
+        except Exception as e:
+            logging.error(f"Error verifying record: {e}")
+            return False
+
+    def get_record_count(self) -> int:
+        """
+        Get the total number of records in the database.
+        
+        Returns:
+            int: Number of records in the database
+        """
+        try:
+            conn = psycopg2.connect(self.settings.database.service_url)
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT COUNT(*) FROM {self.vector_settings.table_name}")
+                result = cur.fetchone()
+            conn.close()
+            return result[0] if result else 0
+        except Exception as e:
+            logging.error(f"Error getting record count: {e}")
+            return 0
+
+    def verify_connection(self) -> bool:
+        """
+        Verify that the database connection is working.
+        
+        Returns:
+            bool: True if connection is working, False otherwise
+        """
+        try:
+            # Create a direct connection to PostgreSQL
+            conn = psycopg2.connect(self.settings.database.service_url)
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+            conn.close()
+            return True
+        except Exception as e:
+            logging.error(f"Database connection error: {e}")
+            return False
+
+    def get_connection_info(self) -> dict:
+        """
+        Get information about the current database connection.
+        
+        Returns:
+            dict: Connection information including version, tables, and indexes
+        """
+        info = {
+            "connected": False,
+            "version": None,
+            "tables": [],
+            "indexes": []
+        }
+        
+        try:
+            # Create a direct connection to PostgreSQL
+            conn = psycopg2.connect(self.settings.database.service_url)
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                # Check if connected
+                info["connected"] = True
+                
+                # Get PostgreSQL version
+                cur.execute("SHOW server_version")
+                version = cur.fetchone()
+                info["version"] = version['server_version'] if version else None
+                
+                # Get existing tables
+                cur.execute("""
+                    SELECT table_name 
+                    FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                """)
+                info["tables"] = [record['table_name'] for record in cur.fetchall()]
+                
+                # Get existing indexes
+                cur.execute("""
+                    SELECT indexname 
+                    FROM pg_indexes 
+                    WHERE schemaname = 'public'
+                """)
+                info["indexes"] = [record['indexname'] for record in cur.fetchall()]
+                
+            conn.close()
+        except Exception as e:
+            logging.error(f"Error getting connection info: {e}")
+            
+        return info

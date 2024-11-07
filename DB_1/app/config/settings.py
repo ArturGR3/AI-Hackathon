@@ -29,7 +29,7 @@ class OpenAISettings(LLMSettings):
     """OpenAI-specific settings extending LLMSettings."""
 
     api_key: str = Field(default_factory=lambda: os.getenv("OPENAI_API_KEY"))
-    default_model: str = Field(default="gpt-4o")
+    default_model: str = Field(default="gpt-4o-mini")
     embedding_model: str = Field(default="text-embedding-3-small")
 
 
