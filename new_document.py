@@ -74,7 +74,7 @@ def create_document_analysis(document: str):
         iterator: Stream of GovernmentDocument partial objects
     """
     return client.chat.completions.create_partial(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         response_model=GovernmentDocument,
         messages=[{
             "role": "user", 
